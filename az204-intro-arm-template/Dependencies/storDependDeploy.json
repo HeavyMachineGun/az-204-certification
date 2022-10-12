@@ -1,0 +1,50 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "storageNameNested": {
+            "type": "string",
+            "metadata": {
+                "description": "storage account name"
+            }
+        },
+        "containerNameNested": {
+            "type": "string",
+            "metadata": {
+                "description": "container name"
+            }
+        }
+    },
+    "functions": [],
+    "variables": {},
+    "resources": [
+        {
+            "name": "[parameters('storageNameNested')]",
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2021-04-01",
+            "tags": {
+                "displayName": "[parameters('storageNameNested')]"
+            },
+            "location": "[resourceGroup().location]",
+            "kind": "StorageV2",
+            "sku": {
+                "name": "Premium_LRS",
+                "tier": "Premium"
+            },
+            "resources": [
+                {
+                    "name": "[concat(parameters('storageNameNested'),'/default/',parameters('containerNameNested'))]",
+                    "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+                    "apiVersion": "2021-04-01",
+                    "dependsOn": [
+                        "[parameters('storageNameNested')]"
+                    ],
+                    "properties": {
+                        "publicAccess": "None"
+                    }
+                }
+            ]
+        }
+    ],
+    "outputs": {}
+}
