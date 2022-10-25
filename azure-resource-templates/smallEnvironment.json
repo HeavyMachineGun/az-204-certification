@@ -1,0 +1,171 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "cgvirtualmachinewsType": {
+            "type": "string",
+            "defaultValue": "Standard_LRS",
+            "allowedValues": [
+                "Standard_LRS",
+                "Standard_ZRS",
+                "Standard_GRS",
+                "Standard_RAGRS",
+                "Premium_LRS"
+            ]
+        },
+        "cgr-virtual-machine-wsName": {
+            "type": "string",
+            "minLength": 1
+        },
+        "cgr-virtual-machine-wsAdminUserName": {
+            "type": "string",
+            "minLength": 1
+        },
+        "cgr-virtual-machine-wsAdminPassword": {
+            "type": "securestring"
+        },
+        "cgr-virtual-machine-wsWindowsOSVersion": {
+            "type": "string",
+            "defaultValue": "2012-R2-Datacenter",
+            "allowedValues": [
+                "2008-R2-SP1",
+                "2012-Datacenter",
+                "2012-R2-Datacenter",
+                "Windows-Server-Technical-Preview"
+            ]
+        }
+    },
+    "resources": [
+        {
+            "name": "cgr-virtual-network",
+            "type": "Microsoft.Network/virtualNetworks",
+            "location": "[resourceGroup().location]",
+            "apiVersion": "2015-06-15",
+            "dependsOn": [],
+            "tags": {
+                "displayName": "cgr-virtual-network"
+            },
+            "properties": {
+                "addressSpace": {
+                    "addressPrefixes": [
+                        "[variables('cgr-virtual-networkPrefix')]"
+                    ]
+                },
+                "subnets": [
+                    {
+                        "name": "[variables('cgr-virtual-networkSubnet1Name')]",
+                        "properties": {
+                            "addressPrefix": "[variables('cgr-virtual-networkSubnet1Prefix')]"
+                        }
+                    },
+                    {
+                        "name": "[variables('cgr-virtual-networkSubnet2Name')]",
+                        "properties": {
+                            "addressPrefix": "[variables('cgr-virtual-networkSubnet2Prefix')]"
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "name": "[variables('cgvirtualmachinewsName')]",
+            "type": "Microsoft.Storage/storageAccounts",
+            "location": "[resourceGroup().location]",
+            "apiVersion": "2015-06-15",
+            "dependsOn": [],
+            "tags": {
+                "displayName": "cgvirtualmachinews"
+            },
+            "properties": {
+                "accountType": "[parameters('cgvirtualmachinewsType')]"
+            }
+        },
+        {
+            "name": "[variables('cgr-virtual-machine-wsNicName')]",
+            "type": "Microsoft.Network/networkInterfaces",
+            "location": "[resourceGroup().location]",
+            "apiVersion": "2015-06-15",
+            "dependsOn": [
+                "[concat('Microsoft.Network/virtualNetworks/', 'cgr-virtual-network')]"
+            ],
+            "tags": {
+                "displayName": "cgr-virtual-machine-wsNic"
+            },
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig1",
+                        "properties": {
+                            "privateIPAllocationMethod": "Dynamic",
+                            "subnet": {
+                                "id": "[variables('cgr-virtual-machine-wsSubnetRef')]"
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "name": "[parameters('cgr-virtual-machine-wsName')]",
+            "type": "Microsoft.Compute/virtualMachines",
+            "location": "[resourceGroup().location]",
+            "apiVersion": "2015-06-15",
+            "dependsOn": [
+                "[concat('Microsoft.Storage/storageAccounts/', variables('cgvirtualmachinewsName'))]",
+                "[concat('Microsoft.Network/networkInterfaces/', variables('cgr-virtual-machine-wsNicName'))]"
+            ],
+            "tags": {
+                "displayName": "cgr-virtual-machine-ws"
+            },
+            "properties": {
+                "hardwareProfile": {
+                    "vmSize": "[variables('cgr-virtual-machine-wsVmSize')]"
+                },
+                "osProfile": {
+                    "computerName": "[parameters('cgr-virtual-machine-wsName')]",
+                    "adminUsername": "[parameters('cgr-virtual-machine-wsAdminUsername')]",
+                    "adminPassword": "[parameters('cgr-virtual-machine-wsAdminPassword')]"
+                },
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "[variables('cgr-virtual-machine-wsImagePublisher')]",
+                        "offer": "[variables('cgr-virtual-machine-wsImageOffer')]",
+                        "sku": "[parameters('cgr-virtual-machine-wsWindowsOSVersion')]",
+                        "version": "latest"
+                    },
+                    "osDisk": {
+                        "name": "cgr-virtual-machine-wsOSDisk",
+                        "vhd": {
+                            "uri": "[concat('http://', variables('cgvirtualmachinewsName'), '.blob.core.windows.net/', variables('cgr-virtual-machine-wsStorageAccountContainerName'), '/', variables('cgr-virtual-machine-wsOSDiskName'), '.vhd')]"
+                        },
+                        "caching": "ReadWrite",
+                        "createOption": "FromImage"
+                    }
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('cgr-virtual-machine-wsNicName'))]"
+                        }
+                    ]
+                }
+            }
+        }
+    ],
+    "variables": {
+        "cgr-virtual-networkPrefix": "10.0.0.0/16",
+        "cgr-virtual-networkSubnet1Name": "Subnet-1",
+        "cgr-virtual-networkSubnet1Prefix": "10.0.0.0/24",
+        "cgr-virtual-networkSubnet2Name": "Subnet-2",
+        "cgr-virtual-networkSubnet2Prefix": "10.0.1.0/24",
+        "cgvirtualmachinewsName": "[concat('cgvirtualmachinews', uniqueString(resourceGroup().id))]",
+        "cgr-virtual-machine-wsImagePublisher": "MicrosoftWindowsServer",
+        "cgr-virtual-machine-wsImageOffer": "WindowsServer",
+        "cgr-virtual-machine-wsOSDiskName": "cgr-virtual-machine-wsOSDisk",
+        "cgr-virtual-machine-wsVmSize": "Standard_B1s",
+        "cgr-virtual-machine-wsVnetID": "[resourceId('Microsoft.Network/virtualNetworks', 'cgr-virtual-network')]",
+        "cgr-virtual-machine-wsSubnetRef": "[concat(variables('cgr-virtual-machine-wsVnetID'), '/subnets/', variables('cgr-virtual-networkSubnet1Name'))]",
+        "cgr-virtual-machine-wsStorageAccountContainerName": "vhds",
+        "cgr-virtual-machine-wsNicName": "[concat(parameters('cgr-virtual-machine-wsName'), 'NetworkInterface')]"
+    }
+}

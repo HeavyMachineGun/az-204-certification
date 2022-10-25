@@ -3,7 +3,7 @@
     "contentVersion": "1.0.0.0",
     "parameters": {
         "storageAccountName": {
-            "value": "az204storagarm" // TODO: Fill in parameter value
+            "value": "az204storagarm"
         }
     }
 }
